@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Accessibility Explorer</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            padding: 1rem;
+            background: #174b70;
+            color: white;
+        }
+
+        header h1 {
+            margin: 0 0 0.5rem;
+        }
+
+        header p {
+            margin: 0;
+        }
+
+        #map {
+            height: 75vh;
+            min-height: 400px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Campus Accessibility Explorer</h1>
+        <p>Demonstration data: locations and accessibility are not verified.</p>
+    </header>
+
+    <main>
+        <section style="padding: 1rem;">
+            <label for="radius">Search radius in metres:</label>
+            <input
+                type="number"
+                id="radius"
+                value="5000"
+                min="1"
+                max="50000"
+            >
+            <p>Choose a radius, then click the map to search.</p>
+            <p id="search-status" role="status" aria-live="polite"></p>
+
+            <label for="area-select">Campus area:</label>
+
+            <select id="area-select">
+                <option value="">Choose an area</option>
+            </select>
+
+            <button type="button" id="area-search">
+                Find facilities in area
+            </button>
+
+            <p id="area-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <div id="map" aria-label="Map showing sample campus facilities"></div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Start with a view of Dublin.
+        const map = L.map('map').setView([53.35, -6.26], 12);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        fetch('/api/facilities/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Could not load facilities.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const facilitiesLayer = L.geoJSON(data, {
+                    onEachFeature: (feature, layer) => {
+                        // Use textContent so stored text is not treated as HTML.
+                        const popup = document.createElement('div');
+                        const name = document.createElement('strong');
+                        const details = document.createElement('p');
+
+                        name.textContent = feature.properties.name;
+                        details.textContent = feature.properties.category
+                            + ' — ' + feature.properties.description;
+
+                        popup.append(name, details);
+                        layer.bindPopup(popup);
+                    }
+                }).addTo(map);
+
+                // Show all saved facilities when at least one exists.
+                if (facilitiesLayer.getLayers().length > 0) {
+                    map.fitBounds(facilitiesLayer.getBounds(), {
+                        maxZoom: 16
+                    });
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        let searchCircle = null;
+
+        map.on('click', async (event) => {
+            const radiusInput = document.getElementById('radius');
+            const status = document.getElementById('search-status');
+            const radius = Number(radiusInput.value);
+
+            if (!Number.isFinite(radius) || radius <= 0 || radius > 50000) {
+                status.textContent = 'Enter a radius between 1 and 50,000 metres.';
+                return;
+            }
+
+            const lat = event.latlng.lat;
+            const lon = event.latlng.lng;
+
+            if (searchCircle) {
+                map.removeLayer(searchCircle);
+            }
+
+            searchCircle = L.circle(event.latlng, {
+                radius: radius,
+                color: '#d44',
+                fillOpacity: 0.1
+            }).addTo(map);
+
+            status.textContent = 'Searching for nearby facilities...';
+
+            const params = new URLSearchParams({
+                lat: lat,
+                lon: lon,
+                radius: radius
+            });
+
+            try {
+                const response = await fetch(
+                    `/api/facilities/nearby/?${params.toString()}`
+                );
+
+                if (!response.ok) {
+                    throw new Error('Search request failed.');
+                }
+
+                const data = await response.json();
+                const count = data.features.length;
+
+                if (count === 0) {
+                    status.textContent = 'No facilities found within this radius.';
+                    return;
+                }
+
+                const names = data.features.map(feature => {
+                    return `${feature.properties.name} (${feature.properties.distance_metres} m)`;
+                });
+
+                status.textContent = `Found ${count}: ${names.join(', ')}`;
+            } catch (error) {
+                status.textContent = 'Could not complete the search. Please try again.';
+                console.error(error);
+            }
+        });
+
+        fetch('/api/areas/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Could not load campus areas.');
+                }
+                return response.json();
+            })
+            .then(data => {
+
+                const areaSelect = document.getElementById('area-select');
+
+                data.features.forEach(feature => {
+                    const option = document.createElement('option');
+                    option.value = feature.properties.id;
+                    option.textContent = feature.properties.name;
+                    areaSelect.appendChild(option);
+                });
+
+                L.geoJSON(data, {
+                    style: {
+                        color: '#087a47',
+                        weight: 2,
+                        fillOpacity: 0.1
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const popup = document.createElement('div');
+                        const name = document.createElement('strong');
+                        const description = document.createElement('p');
+
+                        name.textContent = feature.properties.name;
+                        description.textContent = feature.properties.description;
+
+                        popup.append(name, description);
+                        layer.bindPopup(popup);
+                    }
+                }).addTo(map);
+            })
+            .catch(error => {
+                console.error(error);
+            });
+
+            document.getElementById('area-search').addEventListener('click', async () => {
+                const areaId = document.getElementById('area-select').value;
+                const status = document.getElementById('area-status');
+
+                if (!areaId) {
+                    status.textContent = 'Please choose a campus area.';
+                    return;
+                }
+
+                status.textContent = 'Searching the selected area...';
+
+                try {
+                    const response = await fetch(
+                        `/api/areas/${encodeURIComponent(areaId)}/facilities/`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Area search failed.');
+                    }
+
+                    const data = await response.json();
+                    const count = data.features.length;
+
+                    if (count === 0) {
+                        status.textContent = `No facilities found in ${data.area}.`;
+                        return;
+                    }
+
+                    const names = data.features.map(feature => feature.properties.name);
+                    status.textContent =
+                        `Found ${count} in ${data.area}: ${names.join(', ')}`;
+                } catch (error) {
+                    status.textContent = 'Could not search the area. Please try again.';
+                    console.error(error);
+                }
+            });
+    </script>
+</body>
+</html>

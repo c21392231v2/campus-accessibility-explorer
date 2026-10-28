@@ -1,0 +1,15 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('', views.map_page, name='map_page'),
+    path('api/facilities/', views.facility_list, name='facility_list'),
+    path('api/facilities/nearby/', views.nearby_facilities, name='nearby_facilities'),
+    path(
+        'api/areas/<int:area_id>/facilities/',
+        views.facilities_in_area,
+        name='facilities_in_area',
+    ),
+    path('api/areas/', views.area_list, name='area_list'),
+]
