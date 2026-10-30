@@ -26,3 +26,12 @@ class CampusArea(models.Model):
 
     def __str__(self):
         return self.name
+
+class CampusPath(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    route = models.LineStringField(srid=4326)
+
+    def __str__(self):
+        return self.name
+

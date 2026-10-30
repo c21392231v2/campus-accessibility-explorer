@@ -5,7 +5,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 import json
 
-from .models import Facility, CampusArea
+from .models import Facility, CampusArea, CampusPath
 
 
 def map_page(request):
@@ -145,5 +145,37 @@ def area_list(request):
 
     return JsonResponse({
         'type': 'FeatureCollection',
+        'features': features,
+    })
+
+def paths_in_area(request, area_id):
+    try:
+        area = CampusArea.objects.get(pk=area_id)
+    except CampusArea.DoesNotExist:
+        return JsonResponse(
+            {'error': 'Campus area not found.'},
+            status=404,
+        )
+
+    paths = CampusPath.objects.filter(
+        route__intersects=area.boundary
+    )
+
+    features = []
+
+    for path in paths:
+        features.append({
+            'type': 'Feature',
+            'geometry': json.loads(path.route.geojson),
+            'properties': {
+                'id': path.id,
+                'name': path.name,
+                'description': path.description,
+            },
+        })
+
+    return JsonResponse({
+        'type': 'FeatureCollection',
+        'area': area.name,
         'features': features,
     })

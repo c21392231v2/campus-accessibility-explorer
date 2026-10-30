@@ -12,4 +12,9 @@ urlpatterns = [
         name='facilities_in_area',
     ),
     path('api/areas/', views.area_list, name='area_list'),
+    path(
+        'api/areas/<int:area_id>/paths/',
+        views.paths_in_area,
+        name='paths_in_area',
+    ),
 ]
