@@ -17,4 +17,16 @@ urlpatterns = [
         views.paths_in_area,
         name='paths_in_area',
     ),
+
+    path(
+    'api/facilities/create/',
+    views.create_facility,
+    name='create_facility',
+    ),
+
+    path(
+        'api/facilities/<int:facility_id>/',
+        views.facility_detail,
+        name='facility_detail',
+    ),
 ]

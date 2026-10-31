@@ -46,27 +46,87 @@
     <main>
         <section style="padding: 1rem;">
             <label for="radius">Search radius in metres:</label>
-            <input
-                type="number"
-                id="radius"
-                value="5000"
-                min="1"
-                max="50000"
-            >
+            <input id="radius" type="number" value="5000" min="1" max="50000">
+
             <p>Choose a radius, then click the map to search.</p>
-            <p id="search-status" role="status" aria-live="polite"></p>
+            <p id="search-status" role="status"></p>
 
             <label for="area-select">Campus area:</label>
-
             <select id="area-select">
                 <option value="">Choose an area</option>
             </select>
 
-            <button type="button" id="area-search">
-                Find facilities in area
-            </button>
+            <button type="button" id="area-search">Find facilities in area</button>
+            <button type="button" id="paths-search">Show paths in area</button>
 
-            <p id="area-status" role="status" aria-live="polite"></p>
+            <p id="area-status" role="status"></p>
+            <p id="paths-status" role="status"></p>
+            
+            <h2>Manage facilities</h2>
+
+            <p>
+                Staff can sign in through
+                <a href="/admin/">Django admin</a> before making changes.
+            </p>
+
+            <form id="facility-form">
+                {% csrf_token %}
+
+                <label for="facility-id">Facility:</label>
+                <select id="facility-id">
+                    <option value="">Create a new facility</option>
+                </select>
+
+                <br><br>
+
+                <label for="facility-name">Name:</label>
+                <input id="facility-name" type="text" maxlength="100" required>
+
+                <br><br>
+
+                <label for="facility-category">Category:</label>
+                <select id="facility-category" required>
+                    <option value="entrance">Accessible entrance</option>
+                    <option value="lift">Lift</option>
+                    <option value="toilet">Accessible toilet</option>
+                    <option value="parking">Accessible parking</option>
+                    <option value="other">Other</option>
+                </select>
+
+                <br><br>
+
+                <label for="facility-description">Description:</label>
+                <textarea id="facility-description"></textarea>
+
+                <br><br>
+
+                <label for="facility-latitude">Latitude:</label>
+                <input
+                    id="facility-latitude"
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    required
+                >
+
+                <label for="facility-longitude">Longitude:</label>
+                <input
+                    id="facility-longitude"
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    required
+                >
+
+                <br><br>
+
+                <button type="submit">Save facility</button>
+                <button type="button" id="delete-facility">Delete selected facility</button>
+            </form>
+
+            <p id="facility-status" role="status" aria-live="polite"></p>
         </section>
 
         <div id="map" aria-label="Map showing sample campus facilities"></div>
@@ -254,6 +314,228 @@
                     status.textContent = 'Could not search the area. Please try again.';
                     console.error(error);
                 }
+            });
+
+
+            let pathResultsLayer = null;
+
+            document.getElementById('paths-search').addEventListener('click', async () => {
+                const areaId = document.getElementById('area-select').value;
+                const status = document.getElementById('paths-status');
+
+                if (!areaId) {
+                    status.textContent = 'Please choose a campus area.';
+                    return;
+                }
+
+                status.textContent = 'Searching for paths...';
+
+                try {
+                    const response = await fetch(
+                        `/api/areas/${encodeURIComponent(areaId)}/paths/`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Path search failed.');
+                    }
+
+                    const data = await response.json();
+
+                    if (pathResultsLayer) {
+                        map.removeLayer(pathResultsLayer);
+                    }
+
+                    pathResultsLayer = L.geoJSON(data, {
+                        style: {
+                            color: '#7550b8',
+                            weight: 4
+                        },
+                        onEachFeature: (feature, layer) => {
+                            const popup = document.createElement('div');
+                            const name = document.createElement('strong');
+                            const description = document.createElement('p');
+
+                            name.textContent = feature.properties.name;
+                            description.textContent = feature.properties.description;
+
+                            popup.append(name, description);
+                            layer.bindPopup(popup);
+                        }
+                    }).addTo(map);
+
+                    const count = data.features.length;
+
+                    status.textContent = count
+                        ? `Found ${count} path(s) intersecting ${data.area}.`
+                        : `No paths found intersecting ${data.area}.`;
+
+                    if (count > 0) {
+                        map.fitBounds(pathResultsLayer.getBounds(), { padding: [20, 20] });
+                    }
+                } catch (error) {
+                    status.textContent = 'Could not load paths. Please try again.';
+                    console.error(error);
+                }
+            });
+
+            const facilityForm = document.getElementById('facility-form');
+            const facilitySelect = document.getElementById('facility-id');
+            const facilityStatus = document.getElementById('facility-status');
+            const csrfToken = document.querySelector(
+                '#facility-form input[name="csrfmiddlewaretoken"]'
+            ).value;
+
+
+            // Load the facility dropdown.
+            async function loadFacilityOptions() {
+                const response = await fetch('/api/facilities/');
+
+                if (!response.ok) {
+                    throw new Error('Could not load facilities.');
+                }
+
+                const data = await response.json();
+
+                facilitySelect.innerHTML = '<option value="">Create a new facility</option>';
+
+                data.features.forEach(feature => {
+                    const option = document.createElement('option');
+                    option.value = feature.properties.id;
+                    option.textContent = feature.properties.name;
+                    facilitySelect.appendChild(option);
+                });
+            }
+
+
+            // Populate the form when a facility is selected.
+            facilitySelect.addEventListener('change', async () => {
+                const facilityId = facilitySelect.value;
+
+                if (!facilityId) {
+                    facilityForm.reset();
+                    facilityStatus.textContent = 'Creating a new facility.';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        `/api/facilities/${encodeURIComponent(facilityId)}/`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Could not load the facility.');
+                    }
+
+                    const facility = await response.json();
+
+                    document.getElementById('facility-name').value = facility.name;
+                    document.getElementById('facility-category').value = facility.category;
+                    document.getElementById('facility-description').value =
+                        facility.description;
+                    document.getElementById('facility-latitude').value = facility.latitude;
+                    document.getElementById('facility-longitude').value = facility.longitude;
+
+                    facilityStatus.textContent = `Editing ${facility.name}.`;
+                } catch (error) {
+                    facilityStatus.textContent = 'Could not load the selected facility.';
+                    console.error(error);
+                }
+            });
+
+
+            // Create or update a facility.
+            facilityForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const facilityId = facilitySelect.value;
+
+                const data = {
+                    name: document.getElementById('facility-name').value,
+                    category: document.getElementById('facility-category').value,
+                    description: document.getElementById('facility-description').value,
+                    latitude: Number(document.getElementById('facility-latitude').value),
+                    longitude: Number(document.getElementById('facility-longitude').value)
+                };
+
+                const url = facilityId
+                    ? `/api/facilities/${encodeURIComponent(facilityId)}/`
+                    : '/api/facilities/create/';
+
+                const method = facilityId ? 'PUT' : 'POST';
+
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Could not save the facility.');
+                    }
+
+                    facilityStatus.textContent =
+                        `${result.name} saved. Refresh the page to update the map.`;
+
+                    facilityForm.reset();
+                    await loadFacilityOptions();
+                } catch (error) {
+                    facilityStatus.textContent = error.message;
+                    console.error(error);
+                }
+            });
+
+
+            // Delete the selected facility.
+            document.getElementById('delete-facility').addEventListener('click', async () => {
+                const facilityId = facilitySelect.value;
+
+                if (!facilityId) {
+                    facilityStatus.textContent = 'Select a facility to delete.';
+                    return;
+                }
+
+                if (!confirm('Delete this facility?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        `/api/facilities/${encodeURIComponent(facilityId)}/`,
+                        {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRFToken': csrfToken
+                            }
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Could not delete the facility.');
+                    }
+
+                    facilityStatus.textContent =
+                        'Facility deleted. Refresh the page to update the map.';
+
+                    facilityForm.reset();
+                    await loadFacilityOptions();
+                } catch (error) {
+                    facilityStatus.textContent = error.message;
+                    console.error(error);
+                }
+            });
+
+
+            loadFacilityOptions().catch(error => {
+                facilityStatus.textContent = 'Could not load facilities.';
+                console.error(error);
             });
     </script>
 </body>
