@@ -11,45 +11,59 @@
     >
 
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
-
-        header {
-            padding: 1rem;
-            background: #174b70;
-            color: white;
-        }
-
-        header h1 {
-            margin: 0 0 0.5rem;
-        }
-
-        header p {
-            margin: 0;
-        }
-
-        #map {
-            height: 75vh;
-            min-height: 400px;
+        * { box-sizing: border-box; }
+        :root { color-scheme: light; --navy: #174b70; --ink: #173247; --muted: #526777; --line: #d5e1e8; }
+        body { margin: 0; font-family: system-ui, -apple-system, sans-serif; color: var(--ink); background: #f0f5f8; line-height: 1.5; }
+        header { padding: 22px 28px; background: var(--navy); color: white; }
+        header h1 { margin: 0 0 6px; font-size: clamp(1.45rem, 3vw, 2rem); letter-spacing: -.03em; }
+        header p { margin: 0; font-size: .9rem; color: #e0edf5; }
+        main { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 20px; padding: 20px; align-items: start; }
+        main > section { min-width: 0; padding: 22px !important; background: white; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 4px 20px #17324708; }
+        h2 { font-size: 1.2rem; margin: 0 0 14px; }
+        .manage-heading { border-top: 1px solid var(--line); padding-top: 24px; margin-top: 26px; }
+        p { overflow-wrap: anywhere; }
+        section p { font-size: .9rem; color: var(--muted); }
+        a { color: #155e91; text-underline-offset: 3px; }
+        label { display: block; font-weight: 650; font-size: .88rem; margin: 14px 0 6px; }
+        input, select, textarea, button { font: inherit; }
+        input, select, textarea { display: block; width: 100%; min-width: 0; min-height: 46px; border: 1px solid #aebfcb; border-radius: 8px; padding: 10px 12px; background: #fff; color: var(--ink); }
+        textarea { min-height: 90px; resize: vertical; }
+        button { min-height: 46px; padding: 10px 14px; border-radius: 8px; border: 1px solid #17628e; background: #17628e; color: white; font-weight: 600; cursor: pointer; margin-top: 10px; width: 100%; }
+        button:hover { background: #124d70; }
+        button:disabled { opacity: .55; cursor: wait; }
+        #paths-search { background: white; color: #174b70; }
+        #delete-facility { background: white; border-color: #b23939; color: #a12929; }
+        :is(input, select, textarea, button, a):focus-visible { outline: 3px solid #e7a320; outline-offset: 3px; }
+        section br { display: none; }
+        [role="status" aria-live="polite"]:not(:empty) { padding: 10px 12px; background: #edf5fa; border-left: 3px solid #17628e; border-radius: 4px; }
+        #map { width: 100%; height: calc(100dvh - 165px); min-height: 460px; border: 1px solid var(--line); border-radius: 16px; position: sticky; top: 20px; }
+        .skip-link { position: absolute; left: 12px; top: -80px; z-index: 2000; background: white; padding: 10px; }
+        .skip-link:focus { top: 8px; }
+        @media (max-width: 760px) {
+            header { padding: 18px 16px; }
+            main { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 12px; }
+            #map { position: relative; top: auto; height: 55dvh; min-height: 320px; grid-row: 1; }
+            main > section { padding: 18px !important; }
+            input, select, textarea { font-size: 16px; }
         }
     </style>
 </head>
 
 <body>
+    <a class="skip-link" href="#facility-controls">Skip to search and facilities</a>
     <header>
         <h1>Campus Accessibility Explorer</h1>
         <p>Demonstration data: locations and accessibility are not verified.</p>
     </header>
 
     <main>
-        <section style="padding: 1rem;">
+        <section id="facility-controls" aria-label="Search and manage facilities" style="padding: 1rem;">
+            <h2>Explore the campus</h2>
             <label for="radius">Search radius in metres:</label>
             <input id="radius" type="number" value="5000" min="1" max="50000">
 
             <p>Choose a radius, then click the map to search.</p>
-            <p id="search-status" role="status"></p>
+            <p id="search-status" role="status" aria-live="polite"></p>
 
             <label for="area-select">Campus area:</label>
             <select id="area-select">
@@ -59,10 +73,10 @@
             <button type="button" id="area-search">Find facilities in area</button>
             <button type="button" id="paths-search">Show paths in area</button>
 
-            <p id="area-status" role="status"></p>
-            <p id="paths-status" role="status"></p>
+            <p id="area-status" role="status" aria-live="polite"></p>
+            <p id="paths-status" role="status" aria-live="polite"></p>
             
-            <h2>Manage facilities</h2>
+            <h2 class="manage-heading">Manage facilities</h2>
 
             <p>
                 Staff can sign in through
@@ -143,7 +157,9 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        fetch('/api/facilities/')
+        let facilitiesLayer = null;
+        function refreshFacilities(fit = false) {
+        return fetch('/api/facilities/')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Could not load facilities.');
@@ -151,7 +167,8 @@
                 return response.json();
             })
             .then(data => {
-                const facilitiesLayer = L.geoJSON(data, {
+                if (facilitiesLayer) map.removeLayer(facilitiesLayer);
+                facilitiesLayer = L.geoJSON(data, {
                     onEachFeature: (feature, layer) => {
                         // Use textContent so stored text is not treated as HTML.
                         const popup = document.createElement('div');
@@ -168,7 +185,7 @@
                 }).addTo(map);
 
                 // Show all saved facilities when at least one exists.
-                if (facilitiesLayer.getLayers().length > 0) {
+                if (fit && facilitiesLayer.getLayers().length > 0) {
                     map.fitBounds(facilitiesLayer.getBounds(), {
                         maxZoom: 16
                     });
@@ -177,6 +194,8 @@
             .catch(error => {
                 console.error(error);
             });
+        }
+        refreshFacilities(true);
         let searchCircle = null;
 
         map.on('click', async (event) => {
@@ -480,10 +499,11 @@
                     }
 
                     facilityStatus.textContent =
-                        `${result.name} saved. Refresh the page to update the map.`;
+                        `${result.name} saved.`;
 
                     facilityForm.reset();
                     await loadFacilityOptions();
+                    await refreshFacilities();
                 } catch (error) {
                     facilityStatus.textContent = error.message;
                     console.error(error);
@@ -522,10 +542,11 @@
                     }
 
                     facilityStatus.textContent =
-                        'Facility deleted. Refresh the page to update the map.';
+                        'Facility deleted.';
 
                     facilityForm.reset();
                     await loadFacilityOptions();
+                    await refreshFacilities();
                 } catch (error) {
                     facilityStatus.textContent = error.message;
                     console.error(error);
