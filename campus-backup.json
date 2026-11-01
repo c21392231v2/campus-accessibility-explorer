@@ -1,0 +1,80 @@
+[
+{
+  "model": "campus.facility",
+  "pk": 1,
+  "fields": {
+    "name": "Demo Accessible Entrance",
+    "category": "entrance",
+    "description": "Sample data for testing; location and accessibility are not verified.",
+    "location": "SRID=4326;POINT (-6.328194070110333 53.34849477146985)"
+  }
+},
+{
+  "model": "campus.facility",
+  "pk": 2,
+  "fields": {
+    "name": "Demo Lift",
+    "category": "lift",
+    "description": "Sample location; accessibility is not verified.",
+    "location": "SRID=4326;POINT (-6.257098577577828 53.32531223081973)"
+  }
+},
+{
+  "model": "campus.facility",
+  "pk": 3,
+  "fields": {
+    "name": "Demo Accessible Toilet",
+    "category": "toilet",
+    "description": "Sample location; accessibility is not verified.",
+    "location": "SRID=4326;POINT (-6.26725496540562 53.31603759862576)"
+  }
+},
+{
+  "model": "campus.facility",
+  "pk": 4,
+  "fields": {
+    "name": "Demo Accessible Parking",
+    "category": "parking",
+    "description": "Sample location; accessibility is not verified.",
+    "location": "SRID=4326;POINT (-6.308763899373629 53.337775572701126)"
+  }
+},
+{
+  "model": "campus.facility",
+  "pk": 8,
+  "fields": {
+    "name": "CRUD API test updated",
+    "category": "entrance",
+    "description": "",
+    "location": "SRID=4326;POINT (-6.26 53.35)"
+  }
+},
+{
+  "model": "campus.facility",
+  "pk": 9,
+  "fields": {
+    "name": "Persistent Test",
+    "category": "other",
+    "description": "",
+    "location": "SRID=4326;POINT (-7 6)"
+  }
+},
+{
+  "model": "campus.campusarea",
+  "pk": 2,
+  "fields": {
+    "name": "Demo Campus Area",
+    "description": "Sample boundary for testing; not a verified campus boundary.",
+    "boundary": "SRID=4326;POLYGON ((-6.251355793024033 53.16344088730489, -6.6892123369238075 53.285051200789766, -6.215243913114775 53.497710362127705, -6.066282408489077 53.23374674535905, -6.251355793024033 53.16344088730489))"
+  }
+},
+{
+  "model": "campus.campuspath",
+  "pk": 1,
+  "fields": {
+    "name": "Demo Campus Path",
+    "description": "Sample path for testing; route and accessibility are not verified.",
+    "route": "SRID=4326;LINESTRING (-6.321452673282001 53.63249293374401, -6.074503998335026 53.583846330972236, -5.945328045184588 53.40288008587679, -5.982830741260522 53.196184782595424, -7.062572784898271 53.11453698885145, -6.7120498316259045 53.43268101214642, -6.292818041895205 53.647522093308304)"
+  }
+}
+]
