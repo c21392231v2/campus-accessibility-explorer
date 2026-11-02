@@ -262,6 +262,98 @@ change credentials in an existing PostgreSQL database volume.
 - The current Docker setup uses Django's development server and DEBUG=True.
   It is intended for local coursework demonstration, not public deployment.
 
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Browser["Browser: HTML, CSS and Leaflet"]
+    OSM["OpenStreetMap tile service"]
+
+    subgraph Docker["Docker network: campus_network"]
+        Django["Django: pages, JSON API and authentication"]
+        Database["PostgreSQL / PostGIS"]
+        PgAdmin["pgAdmin"]
+    end
+
+    Volume["Persistent volume: postgres_data"]
+
+    Browser -->|"HTTP requests on localhost:8000"| Django
+    Browser -->|"Map tile requests"| OSM
+    Django -->|"ORM and spatial queries on db:5432"| Database
+    PgAdmin -->|"Database administration"| Database
+    Database --> Volume
+```
+
+The browser renders the interface and requests spatial data from Django.
+Leaflet retrieves basemap tiles directly from OpenStreetMap.
+
+Docker Compose runs Django, PostGIS and pgAdmin as separate services on
+a custom network. PostgreSQL data is stored in a named volume so it
+survives container removal and recreation.
+
+### Django application structure
+
+The application follows Django's model–template–view pattern:
+
+- Models: Facility, CampusArea and CampusPath define stored spatial data.
+- Views: Python functions validate requests, run queries and return HTML or JSON.
+- Templates: campus/map.html provides the interface and browser interactions.
+- URL configuration: maps request paths to view functions.
+
+Django views perform the request-handling role associated with controllers
+in MVC terminology.
+
+## Database schema
+
+Each model has an automatically generated BigAutoField primary key named id.
+
+| Model | Field | Type | Constraints |
+| --- | --- | --- | --- |
+| Facility | name | CharField | Maximum 100 characters |
+| Facility | category | CharField | Maximum 20 characters; predefined choices |
+| Facility | description | TextField | May be blank |
+| Facility | location | PointField | SRID 4326; spatial index |
+| CampusArea | name | CharField | Maximum 100 characters |
+| CampusArea | description | TextField | May be blank |
+| CampusArea | boundary | PolygonField | SRID 4326; spatial index |
+| CampusPath | name | CharField | Maximum 100 characters |
+| CampusPath | description | TextField | May be blank |
+| CampusPath | route | LineStringField | SRID 4326; spatial index |
+
+Facility category values are entrance, lift, toilet, parking and other.
+The API validates category choices, required names and coordinate ranges.
+
+There are no foreign keys between these three models. Spatial relationships
+are calculated using geometry queries:
+
+- Proximity: facilities within a requested distance of a point.
+- Containment: facilities inside or on an area's boundary.
+- Intersection: paths sharing any portion or point with an area.
+
+Spatial indexes are created by the GeoDjango geometry fields, which have
+spatial indexing enabled by default.
+
+## Local deployment configuration
+
+DJANGO_DEBUG and DJANGO_ALLOWED_HOSTS are passed to Django through
+Docker Compose environment variables.
+
+The demonstrated local configuration uses DJANGO_DEBUG=True and Django's
+development server. It is not a production deployment.
+
+A public deployment would additionally require a production application
+server, static-file serving, DEBUG=False, appropriate host configuration,
+HTTPS and secure session/CSRF cookies.
+
+## Screenshots
+
+### Desktop
+![Desktop application](docs/screenshots/desktop.png)
+
+### Mobile
+![Mobile application](docs/screenshots/mobile.png)
+
 ## Attribution
 
 Map display: Leaflet.
