@@ -4,3 +4,8 @@ __pycache__/
 .venv/
 venv/
 *.sqlite3
+
+.env.*
+!.env.example
+campus-backup.json
+*.log

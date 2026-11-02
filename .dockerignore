@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+__pycache__
+*.py[cod]
+.venv
+venv
+*.sqlite3
+campus-backup.json
+*.log
