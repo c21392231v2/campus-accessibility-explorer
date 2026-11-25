@@ -61,6 +61,16 @@
             <label for="radius">Search radius in metres:</label>
             <input id="radius" type="number" value="5000" min="1" max="50000">
 
+            <label for="nearby-category">Facility type:</label>
+            <select id="nearby-category">
+                <option value="">All facilities</option>
+                <option value="entrance">Accessible entrance</option>
+                <option value="lift">Lift</option>
+                <option value="toilet">Accessible toilet</option>
+                <option value="parking">Accessible parking</option>
+                <option value="other">Other</option>
+            </select>
+
             <p>Choose a radius, then click the map to search.</p>
             <p id="search-status" role="status" aria-live="polite"></p>
 
@@ -230,6 +240,12 @@
                 radius: radius
             });
 
+            const category = document.getElementById('nearby-category').value;
+
+            if (category) {
+                params.set('category', category);
+            }
+
             try {
                 const response = await fetch(
                     `/api/facilities/nearby/?${params.toString()}`
@@ -277,6 +293,7 @@
                 });
 
                 L.geoJSON(data, {
+                    interactive: false,
                     style: {
                         color: '#087a47',
                         weight: 2,

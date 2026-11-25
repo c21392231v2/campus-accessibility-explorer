@@ -61,13 +61,25 @@ def nearby_facilities(request):
 
     # Point takes longitude first, then latitude.
     centre = Point(longitude, latitude, srid=4326)
+    category = request.GET.get("category", "").strip()
+    valid_categories = {value for value, _ in Facility.CATEGORY_CHOICES}
 
-    facilities = (
-        Facility.objects
-        .filter(location__distance_lte=(centre, D(m=radius)))
-        .annotate(distance=Distance('location', centre))
-        .order_by('distance')
+    if category and category not in valid_categories:
+        return JsonResponse(
+            {"error": "Choose a valid facility category."},
+            status=400,
+        )
+
+    facilities = Facility.objects.filter(
+    location__distance_lte=(centre, D(m=radius))
     )
+
+    if category:
+        facilities = facilities.filter(category=category)
+
+    facilities = facilities.annotate(
+        distance=Distance("location", centre)
+    ).order_by("distance")
 
     features = []
 

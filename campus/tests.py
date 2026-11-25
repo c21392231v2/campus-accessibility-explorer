@@ -89,3 +89,40 @@ class SpatialQueryTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_nearby_search_filters_by_category(self):
+        Facility.objects.create(
+            name="Nearby toilet",
+            category="toilet",
+            location=Point(-6.2755, 53.355, srid=4326),
+        )
+
+        response = self.client.get(
+            reverse("nearby_facilities"),
+            {
+                "lat": 53.355,
+                "lon": -6.275,
+                "radius": 500,
+                "category": "toilet",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        names = {
+            feature["properties"]["name"]
+            for feature in response.json()["features"]
+        }
+        self.assertEqual(names, {"Nearby toilet"})
+
+    def test_nearby_search_rejects_invalid_category(self):
+        response = self.client.get(
+            reverse("nearby_facilities"),
+            {
+                "lat": 53.355,
+                "lon": -6.275,
+                "radius": 500,
+                "category": "invalid",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
