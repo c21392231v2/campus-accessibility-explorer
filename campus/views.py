@@ -8,7 +8,12 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from django.views.decorators.http import require_http_methods
 
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+
 from .models import Facility, CampusArea, CampusPath
+from .serializers import NearbyFacilityQuerySerializer
 
 
 def map_page(request):
@@ -41,37 +46,22 @@ def facility_list(request):
         'features': features,
     })
 
+@api_view(["GET"])
+@renderer_classes([JSONRenderer])
 def nearby_facilities(request):
-    try:
-        latitude = float(request.GET.get('lat', ''))
-        longitude = float(request.GET.get('lon', ''))
-        radius = float(request.GET.get('radius', ''))
+    query = NearbyFacilityQuerySerializer(data=request.query_params)
+    if not query.is_valid():
+        message = "Provide valid lat, lon and radius values."
+        if set(query.errors) == {"category"}:
+            message = "Choose a valid facility category."
+        return Response({"error": message}, status=400)
 
-        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-            raise ValueError('Invalid coordinates.')
-
-        if not (0 < radius <= 50000):
-            raise ValueError('Radius must be between 0 and 50,000 metres.')
-
-    except (ValueError, TypeError):
-        return JsonResponse(
-            {'error': 'Provide valid lat, lon and radius values.'},
-            status=400,
-        )
-
-    # Point takes longitude first, then latitude.
-    centre = Point(longitude, latitude, srid=4326)
-    category = request.GET.get("category", "").strip()
-    valid_categories = {value for value, _ in Facility.CATEGORY_CHOICES}
-
-    if category and category not in valid_categories:
-        return JsonResponse(
-            {"error": "Choose a valid facility category."},
-            status=400,
-        )
-
+    params = query.validated_data
+    # GeoDjango points take longitude first.
+    centre = Point(params["lon"], params["lat"], srid=4326)
+    category = params.get("category", "")
     facilities = Facility.objects.filter(
-    location__distance_lte=(centre, D(m=radius))
+        location__distance_lte=(centre, D(m=params["radius"]))
     )
 
     if category:
@@ -99,7 +89,7 @@ def nearby_facilities(request):
             },
         })
 
-    return JsonResponse({
+    return Response({
         'type': 'FeatureCollection',
         'features': features,
     })
