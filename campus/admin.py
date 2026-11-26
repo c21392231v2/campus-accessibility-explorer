@@ -1,9 +1,10 @@
 from django.contrib import admin
 from .models import Facility, CampusArea, CampusPath
+from django.contrib.gis.admin import GISModelAdmin
 
 
 @admin.register(Facility)
-class FacilityAdmin(admin.ModelAdmin):
+class FacilityAdmin(GISModelAdmin):
     list_display = ('name', 'category', 'location')
     list_filter = ('category',)
     search_fields = ('name', 'description')

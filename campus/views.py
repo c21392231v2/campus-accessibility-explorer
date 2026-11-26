@@ -20,6 +20,8 @@ def map_page(request):
     return render(request, 'campus/map.html')
 
 
+@api_view(["GET"])
+@renderer_classes([JSONRenderer])
 def facility_list(request):
     facilities = Facility.objects.all()
 
@@ -94,6 +96,8 @@ def nearby_facilities(request):
         'features': features,
     })
 
+@api_view(["GET"])
+@renderer_classes([JSONRenderer])
 def facilities_in_area(request, area_id):
     try:
         area = CampusArea.objects.get(pk=area_id)
@@ -134,6 +138,8 @@ def facilities_in_area(request, area_id):
         'features': features,
     })
 
+@api_view(["GET"])
+@renderer_classes([JSONRenderer])
 def area_list(request):
     features = []
 
@@ -153,6 +159,8 @@ def area_list(request):
         'features': features,
     })
 
+@api_view(["GET"])
+@renderer_classes([JSONRenderer])
 def paths_in_area(request, area_id):
     try:
         area = CampusArea.objects.get(pk=area_id)
