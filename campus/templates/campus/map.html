@@ -184,13 +184,16 @@
                         // Use textContent so stored text is not treated as HTML.
                         const popup = document.createElement('div');
                         const name = document.createElement('strong');
-                        const details = document.createElement('p');
+                        const category = document.createElement('div');
+                        const description = document.createElement('p');
 
                         name.textContent = feature.properties.name;
-                        details.textContent = feature.properties.category
-                            + ' — ' + feature.properties.description;
+                        category.textContent = feature.properties.category;
+                        description.textContent = feature.properties.description || 'No details available yet';
 
-                        popup.append(name, details);
+                        const access = document.createElement('div');
+                        access.textContent = `Step-free access: ${feature.properties.step_free_access ?? 'Unknown'}`;
+                        popup.append(name, category, access, description);
                         layer.bindPopup(popup);
                     }
                 }).addTo(map);

@@ -16,6 +16,8 @@ class Facility(models.Model):
     description = models.TextField(blank=True)
     location = models.PointField(srid=4326)
 
+    step_free_access = models.CharField(max_length=7, choices=[('yes', 'Yes'), ('no', 'No')], default='unknown')
+
     def __str__(self):
         return self.name
 

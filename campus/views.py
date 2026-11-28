@@ -39,6 +39,7 @@ def facility_list(request):
                 'id': facility.id,
                 'name': facility.name,
                 'category': facility.get_category_display(),
+                'step_free_access': facility.get_step_free_access_display(),
                 'description': facility.description,
             },
         })
@@ -86,6 +87,7 @@ def nearby_facilities(request):
                 'id': facility.id,
                 'name': facility.name,
                 'category': facility.get_category_display(),
+                'step_free_access': facility.get_step_free_access_display(),
                 'description': facility.description,
                 'distance_metres': round(facility.distance.m),
             },
@@ -128,6 +130,7 @@ def facilities_in_area(request, area_id):
                 'id': facility.id,
                 'name': facility.name,
                 'category': facility.get_category_display(),
+                'step_free_access': facility.get_step_free_access_display(),
                 'description': facility.description,
             },
         })
